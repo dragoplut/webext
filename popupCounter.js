@@ -7,46 +7,59 @@
  * @param justVisited
  * @returns {Array}
  */
-function compareList(justVisited){
-    var loadedList = loadList();
-    console.log(loadedList, ' before if undefined');
+function compareList(loadedList, justVisited){
+    console.log(loadedList, ' 3 before if undefined');
     if (loadedList === undefined || loadedList == []){
         chrome.storage.local.set({'visitedUrl': justVisited});
         chrome.storage.local.set({'counter': 1});
-        loadedList = loadList();
     }
     var trigger = false;
-    console.log(loadedList, ' in compare');
-    for (var i = 0; i <= loadedList.length; i++){
-        if (loadedList.visitedUrl[i] == justVisited){
-            chrome.storage.local.set({'visitedUrl': justVisited});
-            chrome.storage.local.set({'counter': loadedList.counter + 1});
-            trigger = true;
-        } else if (i == loadedList.visitedUrl.length && !trigger){
-            chrome.storage.local.set({'visitedUrl': justVisited});
-            chrome.storage.local.set({'counter': 1});
-            trigger = true;
+    console.log(loadedList, ' 4 in compare');
+    loadList(function(result){
+        loadedList = result;
+        for (var i = 0; i <= loadedList.length; i++){
+            if (loadedList.visitedUrl[i] == justVisited){
+                chrome.storage.local.set({'visitedUrl': justVisited});
+                chrome.storage.local.set({'counter': loadedList.counter + 1});
+                trigger = true;
+            } else if (i == loadedList.visitedUrl.length && !trigger){
+                chrome.storage.local.set({'visitedUrl': justVisited});
+                chrome.storage.local.set({'counter': 1});
+                trigger = true;
+            }
         }
-    }
-    return loadList();
+    });
+}
+
+
+function loadBase(justVisited){
+    var loadedList = [];
+    loadList(function(result){
+        loadedList = result;
+        compareList(loadedList, justVisited);
+        loadList(function (result){
+            $('#status').html(renderHTML(result));
+        });
+    });
 }
 
 /**
  * Loads list of visited url's. Warning!!! Problem, it is not returning array loadedList. Didn't solv.
  * @returns {Array}
  */
-function loadList(){
-    var loadedList = [];
+function loadList(done){
+    var loadedList = {};
     chrome.storage.local.get(['visitedUrl', 'counter'], function (result) {
-        console.log(result.visitedUrl, ' storage status');
-        //if (result.visitedUrl && result.visitedUrl != undefined){
+        console.log(result.visitedUrl, ' 1 storage status');
+        if (result.visitedUrl && result.visitedUrl != undefined){
             var visited = result.visitedUrl;
             var count = result.counter;
-            loadedList = [{'visitedUrl': visited}, {'counter': count}];
-            console.log(visited, count, loadedList, ' in load');
-        //}
+            loadedList.visitedUrl = visited;
+            loadedList.counter = count;
+            console.log(visited, count, loadedList, ' 2 in load');
+        done(loadedList);
+        }
     });
-    return loadedList;
 }
 
 /**
@@ -85,16 +98,20 @@ function parseUrl(unparsedUrl){
  */
 function renderHTML(webHistory){
     var blocks = [];
-    //console.log(webHistory);
-    for (var i = 0; i < webHistory.length; i++){
-        var template = '<div id="' + i + '"><p>' + webHistory[i] + ' - ' + webHistory[i] + '</p></div><br>';
+    console.log(webHistory, ' webHistory obj');
+    for (var i = 0; i < webHistory.visitedUrl.length; i++){
+        var template = '<div id="' + i + '"><p>' + webHistory.visitedUrl + ' - ' + webHistory.counter + '</p></div><br>';
         blocks += template;
     }
     return blocks;
 }
 
+
 chrome.tabs.onUpdated.addListener(function( tabId, changeInfo, tab){
     var justVisited = parseUrl(tab.url);
-    $('#status').html(renderHTML(compareList(justVisited)));
-    console.log(loadList());
+    loadBase(justVisited);
+});
+
+document.addEventListener('DOMContentLoaded', function(){
+    console.log('pic click listener');
 });
