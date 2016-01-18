@@ -3,35 +3,37 @@
  */
 
 /**
- * Compare justVisited url with list from loadList. Warning!!! Because of "empty" loadedList arr, is not working.
+ *  Compare justVisited url with list from loadedList.
+ * @param loadedList
  * @param justVisited
- * @returns {Array}
  */
 function compareList(loadedList, justVisited){
     console.log(loadedList, ' 3 before if undefined');
-    if (loadedList === undefined || loadedList == []){
-        chrome.storage.local.set({'visitedUrl': justVisited});
-        chrome.storage.local.set({'counter': 1});
-    }
-    var trigger = false;
-    console.log(loadedList, ' 4 in compare');
-    loadList(function(result){
-        loadedList = result;
-        for (var i = 0; i <= loadedList.length; i++){
-            if (loadedList.visitedUrl[i] == justVisited){
-                chrome.storage.local.set({'visitedUrl': justVisited});
-                chrome.storage.local.set({'counter': loadedList.counter + 1});
-                trigger = true;
-            } else if (i == loadedList.visitedUrl.length && !trigger){
-                chrome.storage.local.set({'visitedUrl': justVisited});
-                chrome.storage.local.set({'counter': 1});
-                trigger = true;
+    var newData = [];
+    if (loadedList[0].visitedUrl === undefined || loadedList === []){
+        newData = [{visitedUrl: justVisited, counter: 1}];
+        chrome.storage.local.set({storageData: newData});
+    } else {
+        loadList(function(result){
+            loadedList = result;
+            console.log(loadedList[0].visitedUrl, ' 4 in compare');
+            for (var i = 0; i < loadedList.length; i++){
+                if (loadedList[i].visitedUrl === justVisited){
+                    newData = [{'visitedUrl': justVisited, 'counter': loadedList[i].counter + 1}];
+                    chrome.storage.local.set({storageData: newData});
+                } else if (i === loadedList.length && loadedList[i].visitedUrl != justVisited) {
+                    newData = loadedList.push({'visitedUrl': justVisited, 'counter': 1});
+                    chrome.storage.local.set({storageData: newData});
+                }
             }
-        }
-    });
+        });
+    }
 }
 
-
+/**
+ * Synchronizes async function with the rest of code..
+ * @param justVisited
+ */
 function loadBase(justVisited){
     var loadedList = [];
     loadList(function(result){
@@ -44,20 +46,20 @@ function loadBase(justVisited){
 }
 
 /**
- * Loads list of visited url's. Warning!!! Problem, it is not returning array loadedList. Didn't solv.
- * @returns {Array}
+ * Loads list of visited url's. Warning!!! Asynchronous function!!!
+ * @param done
  */
 function loadList(done){
-    var loadedList = {};
-    chrome.storage.local.get(['visitedUrl', 'counter'], function (result) {
-        console.log(result.visitedUrl, ' 1 storage status');
-        if (result.visitedUrl && result.visitedUrl != undefined){
-            var visited = result.visitedUrl;
-            var count = result.counter;
-            loadedList.visitedUrl = visited;
-            loadedList.counter = count;
-            console.log(visited, count, loadedList, ' 2 in load');
-        done(loadedList);
+    var loadedData = [];
+    chrome.storage.local.get('storageData', function (result) {
+        console.log(result.storageData, ' 1 storage status');
+        if (result.storageData && result.storageData != undefined){
+            loadedData = result.storageData;
+            console.log(loadedData, ' 2 in load');
+        done(loadedData);
+        } else if (result.storageData === undefined){
+            var newData = [{visitedUrl: undefined, counter: undefined}];
+            chrome.storage.local.set({storageData: newData});
         }
     });
 }
@@ -92,26 +94,34 @@ function parseUrl(unparsedUrl){
 }
 
 /**
- * Render popup html info. Warning!!! Not finished, because of problem with "loadedList" array.
+ * Render popup html info.
  * @param webHistory
  * @returns {Array}
  */
 function renderHTML(webHistory){
     var blocks = [];
     console.log(webHistory, ' webHistory obj');
-    for (var i = 0; i < webHistory.visitedUrl.length; i++){
-        var template = '<div id="' + i + '"><p>' + webHistory.visitedUrl + ' - ' + webHistory.counter + '</p></div><br>';
+    for (var i = 0; i < webHistory.length; i++){
+        var template = '<div id="' + i + '"><p>' + webHistory[i].visitedUrl + ' - ' + webHistory[i].counter + '</p></div><br>';
         blocks += template;
     }
     return blocks;
 }
 
-
+/**
+ * On tab Update, makes compare and changes in chrome.storage.local
+ */
 chrome.tabs.onUpdated.addListener(function( tabId, changeInfo, tab){
-    var justVisited = parseUrl(tab.url);
-    loadBase(justVisited);
+    loadBase(parseUrl(tab.url));
 });
 
+/**
+ * Extention icon onClick Listener.
+ * Render actual list from chrome.storage.local
+ */
 document.addEventListener('DOMContentLoaded', function(){
+    loadList(function (result){
+        $('#status').html(renderHTML(result));
+    });
     console.log('pic click listener');
 });
