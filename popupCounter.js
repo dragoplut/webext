@@ -2,32 +2,34 @@
  * Created by oleksandr on 13.01.16.
  */
 
+//function clearBase(){
+//    if (confirm('Delete previous URL history! Are you sure?')){
+//        chrome.storage.local.set({storageData: []});
+//        alert('History is deleted!');
+//    }
+//}
+
 /**
- *  Compare justVisited url with list from loadedList.
- * @param loadedList
+ * Saves data in chrome.storage.local, if it's needed while URL's compare.
  * @param justVisited
  */
-function compareList(loadedList, justVisited){
-    console.log(loadedList, ' 3 before if undefined');
-    var newData = [];
-    if (loadedList[0].visitedUrl === undefined || loadedList === []){
-        newData = [{visitedUrl: justVisited, counter: 1}];
-        chrome.storage.local.set({storageData: newData});
-    } else {
-        loadList(function(result){
-            loadedList = result;
-            console.log(loadedList[0].visitedUrl, ' 4 in compare');
-            for (var i = 0; i < loadedList.length; i++){
-                if (loadedList[i].visitedUrl === justVisited){
-                    newData = [{'visitedUrl': justVisited, 'counter': loadedList[i].counter + 1}];
-                    chrome.storage.local.set({storageData: newData});
-                } else if (i === loadedList.length && loadedList[i].visitedUrl != justVisited) {
-                    newData = loadedList.push({'visitedUrl': justVisited, 'counter': 1});
-                    chrome.storage.local.set({storageData: newData});
-                }
+function saveData(justVisited){
+    loadList(function(result){ // тут завжди прийде масив - або з данними або пустий []
+        loadedList = result;
+        var found = false;
+        for (var i = 0; i < loadedList.length; i++){
+            if (loadedList[i].visitedUrl === justVisited){
+                loadedList[i].counter = loadedList[i].counter + 1;
+                found = true;//"трігер" зупинки перебору по знайденому урлу - так ми сигналізуємо цим що урл було знайдено
+                break;
             }
-        });
-    }
+        }
+        // якщо урл не було знайдено - додати новий обєкт з нашим урл
+        if (found === false) {
+            loadedList.push({'visitedUrl': justVisited, 'counter': 1});
+        }
+        chrome.storage.local.set({storageData: loadedList});
+    });
 }
 
 /**
@@ -35,13 +37,9 @@ function compareList(loadedList, justVisited){
  * @param justVisited
  */
 function loadBase(justVisited){
-    var loadedList = [];
-    loadList(function(result){
-        loadedList = result;
-        compareList(loadedList, justVisited);
-        loadList(function (result){
-            $('#status').html(renderHTML(result));
-        });
+    saveData(justVisited);
+    loadList(function (result){
+        $('#status').html(renderHTML(result));
     });
 }
 
@@ -56,10 +54,10 @@ function loadList(done){
         if (result.storageData && result.storageData != undefined){
             loadedData = result.storageData;
             console.log(loadedData, ' 2 in load');
-        done(loadedData);
+            done(loadedData);
         } else if (result.storageData === undefined){
-            var newData = [{visitedUrl: undefined, counter: undefined}];
-            chrome.storage.local.set({storageData: newData});
+            chrome.storage.local.set({storageData: []});
+            done([]); // вертаєм пустий масив - ніби ми ще не відвідували не одного сайту
         }
     });
 }
@@ -100,11 +98,14 @@ function parseUrl(unparsedUrl){
  */
 function renderHTML(webHistory){
     var blocks = [];
+    var renderHeader = '<div><h5 class="pURL"><b>URL - count</b></h5></div>';
+    //var renderFooter = '<div><a href="#" onclick="clearBase()">Clear list</a></div>';
     console.log(webHistory, ' webHistory obj');
     for (var i = 0; i < webHistory.length; i++){
-        var template = '<div id="' + i + '"><p>' + webHistory[i].visitedUrl + ' - ' + webHistory[i].counter + '</p></div><br>';
+        var template = '<div id="id' + i + '"><p class="pURL">' + webHistory[i].visitedUrl + ' - ' + webHistory[i].counter + '</p></div>';
         blocks += template;
     }
+    blocks = renderHeader + blocks;
     return blocks;
 }
 
