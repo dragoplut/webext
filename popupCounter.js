@@ -2,12 +2,13 @@
  * Created by oleksandr on 13.01.16.
  */
 
-//function clearBase(){
-//    if (confirm('Delete previous URL history! Are you sure?')){
-//        chrome.storage.local.set({storageData: []});
-//        alert('History is deleted!');
-//    }
-//}
+
+$('#clearList').on('click', function(){
+    if (confirm('Delete previous URL history! Are you sure?')){
+        chrome.storage.local.set({storageData: []});
+        alert('History is deleted!');
+    }
+});
 
 /**
  * Saves data in chrome.storage.local, if it's needed while URL's compare.
@@ -99,13 +100,13 @@ function parseUrl(unparsedUrl){
 function renderHTML(webHistory){
     var blocks = [];
     var renderHeader = '<div><h5 class="pURL"><b>URL - count</b></h5></div>';
-    //var renderFooter = '<div><a href="#" onclick="clearBase()">Clear list</a></div>';
+    var renderFooter = '<div><a href="#" id="clearList">Clear list</a></div>';
     console.log(webHistory, ' webHistory obj');
     for (var i = 0; i < webHistory.length; i++){
         var template = '<div id="id' + i + '"><p class="pURL">' + webHistory[i].visitedUrl + ' - ' + webHistory[i].counter + '</p></div>';
         blocks += template;
     }
-    blocks = renderHeader + blocks;
+    blocks = renderHeader + blocks + renderFooter;
     return blocks;
 }
 
