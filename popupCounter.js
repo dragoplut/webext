@@ -3,18 +3,11 @@
  */
 
 
-$('#clearList').on('click', function(){
-    if (confirm('Delete previous URL history! Are you sure?')){
-        chrome.storage.local.set({storageData: []});
-        alert('History is deleted!');
-    }
-});
-
 /**
  * Saves data in chrome.storage.local, if it's needed while URL's compare.
  * @param justVisited
  */
-function saveData(justVisited){
+function saveData(justVisited, done){ // додамо колбек ф-цію done - в неї ми будемо вертати нашу історію
     loadList(function(result){ // тут завжди прийде масив - або з данними або пустий []
         loadedList = result;
         var found = false;
@@ -30,19 +23,13 @@ function saveData(justVisited){
             loadedList.push({'visitedUrl': justVisited, 'counter': 1});
         }
         chrome.storage.local.set({storageData: loadedList});
+        // тут в нас loadedList містить всю історію з останніми змінами що ми зробили - я маю на увазі justVisited
+        // передаєм нашу історію в колбек ф-цію
+        done(loadedList);
     });
 }
 
-/**
- * Synchronizes async function with the rest of code..
- * @param justVisited
- */
-function loadBase(justVisited){
-    saveData(justVisited);
-    loadList(function (result){
-        $('#status').html(renderHTML(result));
-    });
-}
+
 
 /**
  * Loads list of visited url's. Warning!!! Asynchronous function!!!
@@ -64,8 +51,9 @@ function loadList(done){
 }
 
 /**
- * Parse (clean) string url. Depend on input sting returns in format: www.website.com || website.com
+ * Parse (clean) string url.
  * String have to start with: http:// || https://
+ * Depend on input sting returns in format: www.website.com || website.com
  * @param unparsedUrl
  * @returns {string}
  */
@@ -100,21 +88,35 @@ function parseUrl(unparsedUrl){
 function renderHTML(webHistory){
     var blocks = [];
     var renderHeader = '<div><h5 class="pURL"><b>URL - count</b></h5></div>';
-    var renderFooter = '<div><a href="#" id="clearList">Clear list</a></div>';
+    var renderClearButton = '<div><button id="clearList">Clear list</button></div>';
     console.log(webHistory, ' webHistory obj');
     for (var i = 0; i < webHistory.length; i++){
         var template = '<div id="id' + i + '"><p class="pURL">' + webHistory[i].visitedUrl + ' - ' + webHistory[i].counter + '</p></div>';
         blocks += template;
     }
-    blocks = renderHeader + blocks + renderFooter;
+    blocks = renderHeader + renderClearButton + blocks;
     return blocks;
 }
 
+// Цей Listener взагалі ніколи не спрацьовує.
+chrome.tabs.onCreated.addListener(function(tab){
+    console.log('onCreated');
+    saveData(parseUrl(tab.url), /* тут ми маємо передати ф-цію яка отримає loadedList - done*/ function(loadedList) {
+        $('#status').html(renderHTML(loadedList));
+    });
+});
+
 /**
- * On tab Update, makes compare and changes in chrome.storage.local
+ * On tab Update Listener
  */
-chrome.tabs.onUpdated.addListener(function( tabId, changeInfo, tab){
-    loadBase(parseUrl(tab.url));
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
+    console.log(changeInfo.status, 'onUpdated');
+    if (changeInfo.status === 'loading'){   /* Додав перевірку на статус loading і відсік подвійне потрійне спрацьовування.*/
+        saveData(parseUrl(tab.url), /* тут ми маємо передати ф-цію яка отримає loadedList - done*/ function(loadedList) {
+            $('#status').html(renderHTML(loadedList));
+        });
+    }
+
 });
 
 /**
@@ -122,8 +124,19 @@ chrome.tabs.onUpdated.addListener(function( tabId, changeInfo, tab){
  * Render actual list from chrome.storage.local
  */
 document.addEventListener('DOMContentLoaded', function(){
-    loadList(function (result){
-        $('#status').html(renderHTML(result));
+    /*1*/  loadList(function (result){
+        // тут ми вставляємо кнопку
+        /*3*/ $('#status').html(renderHTML(result));
+
+        // тут потрібна кнопка вже точно буде
+        /*4*/$('#clearList').on('click', function(){
+            /*5*/if (confirm('Delete previous URL history! Are you sure?')){
+                console.log('button click');
+                /*6*/chrome.storage.local.set({storageData: []});
+                /*7*/alert('History is deleted!');
+                // кстаті після видалення мабуть що потрібно знову викликати renderHTML бо історія буде показуватись поки не вікриеєм новий сайт чи не оновим сторінку
+            }
+        });
     });
-    console.log('pic click listener');
+    /*2*/ console.log('pic click listener');
 });
