@@ -116,7 +116,6 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
             $('#status').html(renderHTML(loadedList));
         });
     }
-
 });
 
 /**
@@ -134,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 console.log('button click');
                 /*6*/chrome.storage.local.set({storageData: []});
                 /*7*/alert('History is deleted!');
-                // кстаті після видалення мабуть що потрібно знову викликати renderHTML бо історія буде показуватись поки не вікриеєм новий сайт чи не оновим сторінку
+                 // кстаті після видалення мабуть що потрібно знову викликати renderHTML бо історія буде показуватись поки не вікриеєм новий сайт чи не оновим сторінку
             }
         });
     });
